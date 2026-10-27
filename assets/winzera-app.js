@@ -11525,21 +11525,56 @@ function _doCheckUpdate(){
   });
 }
 
-function _applyImportData(data){
+async function _applyImportData(data){
   if(!data||typeof data!=='object'){toast('Invalid data','error');return;}
-  if(data.config) DB.saveConfig(data.config);
-  if(data.teams) DB.saveTeams(data.teams);
-  if(data.sections) DB.saveSections(data.sections);
-  if(data.items) DB.saveItems(data.items);
-  if(data.participants) DB.saveParticipants(data.participants);
-  if(data.marks) DB.saveMarks(data.marks);
-  if(data.groups) DB.saveGroups(data.groups);
-  if(data.bonuses) DB.saveBonuses(data.bonuses);
-  var withPhotos=(data.participants||[]).filter(function(p){return !!p.photo;}).length;
-  toast('Imported!'+(withPhotos?' · '+withPhotos+' photo'+(withPhotos>1?'s':''):''));
-  _closeModalClean();
-  // Bypass setup dirty check — import always goes straight to dashboard
-  _doNavigate('dashboard',{},false);
+  if(window._wzBackupImportRunning){toast('Backup import already running','error');return;}
+  var sync=window.WinzeraSync;
+  var session=getSession();
+  if(!sync||!sync.getOrgId()||!session||session.role!=='admin'){
+    toast('Please sign in as institution admin before restoring a backup.','error');return;
+  }
+  window._wzBackupImportRunning=true;
+  var fields=['config','teams','sections','items','participants','groups','marks','bonuses'];
+  var methods=['pushConfig','pushTeams','pushSections','pushItems','pushParticipants','pushGroups','pushMarks','pushBonuses'];
+  try{
+    // Never fire eight independent background queues: marks and code letters
+    // require the remote participant/item IDs created by earlier steps.
+    if(window.WinzeraBusy)window.WinzeraBusy.show('Restoring backup to server… Keep this page open.');
+    await Promise.all(Object.keys(_wzPushQueues).map(function(k){return _wzPushQueues[k];}));
+    // Import is an explicit overwrite operation, but only after the remote
+    // snapshot has been loaded. Keep the backup untouched until verified.
+    var remote=await sync.pullOrgSnapshot();
+    sync.rememberSnapshot(remote);
+    for(var i=0;i<fields.length;i++){
+      if(!Object.prototype.hasOwnProperty.call(data,fields[i]))continue;
+      if(fields[i]==='config')_mem.config=data.config;
+      else _mem[fields[i]]=data[fields[i]];
+      await sync[methods[i]](_mem[fields[i]]);
+    }
+    // Read back authoritative server state rather than claiming success from
+    // local memory. Fail visibly if mark or declaration counts do not match.
+    var verified=await sync.pullOrgSnapshot();
+    var expectedDeclared=(data.items||[]).filter(function(x){return !!x.declared;}).length;
+    var actualDeclared=(verified.items||[]).filter(function(x){return !!x.declared;}).length;
+    if(data.items && actualDeclared!==expectedDeclared)throw new Error('Declared results mismatch: backup '+expectedDeclared+', server '+actualDeclared);
+    if(data.marks && (verified.marks||[]).length!==(data.marks||[]).length)throw new Error('Marks mismatch: backup '+data.marks.length+', server '+(verified.marks||[]).length);
+    _mem.config=verified.config||{};
+    ['teams','sections','items','participants','groups','marks','bonuses'].forEach(function(k){_mem[k]=verified[k]||[];});
+    _mem.marks=_wzRecomputeMarksShape(_mem.marks,_mem.items,_mem.config);
+    sync.rememberSnapshot(verified);
+    // Publish only after the verified remote data is loaded into memory.
+    try{await sync.startBroadcasting();await sync.pushBroadcastPayload(_buildPublicPayload('backup-restore'));}catch(e){throw new Error('Data saved, but public results publishing failed: '+e.message);}
+    _closeModalClean();
+    toast('Backup restored and verified on server');
+    _doNavigate('dashboard',{},false);
+  }catch(e){
+    console.error('Winzera backup restore failed',e);
+    toast('Backup NOT fully restored: '+(e.message||e),'error');
+    // A partial import may have been saved. Never auto-retry or wipe data.
+  }finally{
+    window._wzBackupImportRunning=false;
+    if(window.WinzeraBusy)window.WinzeraBusy.hide();
+  }
 }
 
 function _doImport(){
