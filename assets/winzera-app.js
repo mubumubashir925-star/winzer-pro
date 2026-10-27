@@ -13299,6 +13299,10 @@ async function initAppDataAndServices(){
 }
 
 async function _launchApp(){
+  if(location.pathname.replace(/\\/$/,'')==='/super-admin'){
+    location.replace('/super-admin.html');
+    return;
+  }
   // A broadcast link (?view=broadcast&token=...) skips the entire
   // app/login flow — no splash, no auth, straight to the live viewer.
   var _urlParams=new URLSearchParams(location.search);
