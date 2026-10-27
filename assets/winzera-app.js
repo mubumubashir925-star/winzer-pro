@@ -11548,7 +11548,21 @@ async function _applyImportData(data){
     // the same backup twice inserts duplicates and loses mark references.
     var incoming=JSON.parse(JSON.stringify(data));
     var key=function(v){return String(v==null?'':v).trim().toUpperCase();};
-    var byTeam={};(remote.teams||[]).forEach(function(t){byTeam[key(t.name)]=t;});
+    var byTeam={},byUsername={};
+    (remote.teams||[]).forEach(function(t){
+      byTeam[key(t.name)]=t;
+      if(key(t.username))byUsername[key(t.username)]=t;
+    });
+    // A team username is unique per organization. An old backup may have
+    // different team names but the same login username as a remote team.
+    // Never silently overwrite or delete a different team in that case.
+    (incoming.teams||[]).forEach(function(t){
+      var existingByName=byTeam[key(t.name)];
+      var existingByUsername=key(t.username)?byUsername[key(t.username)]:null;
+      if(existingByUsername && (!existingByName || existingByName.id!==existingByUsername.id)){
+        throw new Error('Team username "'+t.username+'" is already used by "'+existingByUsername.name+'". Resolve this conflict before import. No restore started.');
+      }
+    });
     var byItem={};(remote.items||[]).forEach(function(t){byItem[key(t.code)+'|'+key(t.name)+'|'+key(t.section)]=t;});
     var byChest={};(remote.participants||[]).forEach(function(t){byChest[key(t.chestNo)]=t;});
     var byGroup={};(remote.groups||[]).forEach(function(t){byGroup[key(t.groupChestNo)+'|'+key(t.name)]=t;});
@@ -11579,6 +11593,14 @@ async function _applyImportData(data){
     (incoming.groups||[]).forEach(function(g){chestSet.add(String(g.groupChestNo));});
     var unsupported=(incoming.marks||[]).filter(function(m){return !chestSet.has(String(m.chestNo));});
     if(unsupported.length)throw new Error(unsupported.length+' marks have unknown chest numbers. No restore started.');
+    // Reject accidental partial replacement of an existing institution.
+    // The legacy importer uses snapshot reconciliation (including deletes),
+    // so it must not run against an institution with unrelated records.
+    if((remote.items||[]).length && (incoming.items||[]).length){
+      var incomingKeys=new Set(incoming.items.map(function(i){return key(i.code)+'|'+key(i.name)+'|'+key(i.section);}));
+      var unrelated=(remote.items||[]).filter(function(i){return !incomingKeys.has(key(i.code)+'|'+key(i.name)+'|'+key(i.section));});
+      if(unrelated.length)throw new Error('This institution already contains '+unrelated.length+' unrelated items. Use an empty test institution. No restore started.');
+    }
     sync.rememberSnapshot(remote);
     for(var i=0;i<fields.length;i++){
       if(!Object.prototype.hasOwnProperty.call(incoming,fields[i]))continue;
