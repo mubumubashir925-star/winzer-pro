@@ -75,7 +75,7 @@ img, canvas, svg {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Exo+2:wght@300;400;600;700;800&family=Poppins:wght@700;800;900&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Exo+2:wght@300;400;600;700;800&family=Poppins:wght@700;800;900&display=swap"></noscript>
-<link rel="stylesheet" href="./assets/winzera-main.css">
+<link rel="stylesheet" href="/assets/winzera-main.css">
 </head>
 <body>
 <!-- Install Banner -->
@@ -223,7 +223,7 @@ box-shadow:0 8px 30px rgba(0,0,0,.4);
   <div id="pubViewBody" style="flex:1;overflow:hidden;display:flex;flex-direction:column;padding:20px;gap:18px"></div>
 </div>
 
-<script id="wz-vendor-libs" src="./assets/winzera-vendor.js"></script>
+<script id="wz-vendor-libs" src="/assets/winzera-vendor.js"></script>
 <script id="wz-source-protection">
 // ---- Source protection (deterrent only, not real security) ----
 // Disable right-click / context menu
@@ -257,8 +257,8 @@ document.addEventListener('keydown', function(e){
   setInterval(antiDebug, checkInterval);
 })();
 </script>
-<script src="./supabase-client.js"></script>
-<style id="wz-boot-style">#wz-boot-lock{position:fixed;inset:0;z-index:2147483646;background:rgba(10,7,22,.94);display:none;align-items:center;justify-content:center;flex-direction:column;color:#fff;font:600 15px system-ui,sans-serif;gap:18px;pointer-events:all}#wz-boot-lock[data-visible="true"]{display:flex}#wz-boot-lock .wz-spinner{width:42px;height:42px;border:4px solid #ffffff33;border-top-color:#ad8cff;border-radius:50%;animation:wz-spin .8s linear infinite}@keyframes wz-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){#wz-boot-lock .wz-spinner{animation:none}}</style><div id="wz-boot-lock" role="status" aria-live="polite" aria-label="Loading competition data"><div class="wz-spinner" aria-hidden="true"></div><span>Loading competition data…</span></div><script>window.WinzeraBusy={show:function(message){var e=document.getElementById('wz-boot-lock');if(e){e.querySelector('span').textContent=message||'Loading competition data…';e.dataset.visible='true';}},hide:function(){var e=document.getElementById('wz-boot-lock');if(e)e.dataset.visible='false';}};</script><script src="./assets/winzera-app.js"></script>
+<script src="/supabase-client.js"></script>
+<style id="wz-boot-style">#wz-boot-lock{position:fixed;inset:0;z-index:2147483646;background:rgba(10,7,22,.94);display:none;align-items:center;justify-content:center;flex-direction:column;color:#fff;font:600 15px system-ui,sans-serif;gap:18px;pointer-events:all}#wz-boot-lock[data-visible="true"]{display:flex}#wz-boot-lock .wz-spinner{width:42px;height:42px;border:4px solid #ffffff33;border-top-color:#ad8cff;border-radius:50%;animation:wz-spin .8s linear infinite}@keyframes wz-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){#wz-boot-lock .wz-spinner{animation:none}}</style><div id="wz-boot-lock" role="status" aria-live="polite" aria-label="Loading competition data"><div class="wz-spinner" aria-hidden="true"></div><span>Loading competition data…</span></div><script>window.WinzeraBusy={show:function(message){var e=document.getElementById('wz-boot-lock');if(e){e.querySelector('span').textContent=message||'Loading competition data…';e.dataset.visible='true';}},hide:function(){var e=document.getElementById('wz-boot-lock');if(e)e.dataset.visible='false';}};</script><script src="/assets/winzera-app.js"></script>
 
 <!-- PWA Update Banner -->
 <div id="_updateBanner" style="display:none;position:fixed;bottom:72px;left:50%;transform:translateX(-50%);z-index:9999;
