@@ -11544,11 +11544,46 @@ async function _applyImportData(data){
     // Import is an explicit overwrite operation, but only after the remote
     // snapshot has been loaded. Keep the backup untouched until verified.
     var remote=await sync.pullOrgSnapshot();
+    // Match a legacy backup to existing server UUIDs. Otherwise restoring
+    // the same backup twice inserts duplicates and loses mark references.
+    var incoming=JSON.parse(JSON.stringify(data));
+    var key=function(v){return String(v==null?'':v).trim().toUpperCase();};
+    var byTeam={};(remote.teams||[]).forEach(function(t){byTeam[key(t.name)]=t;});
+    var byItem={};(remote.items||[]).forEach(function(t){byItem[key(t.code)+'|'+key(t.name)+'|'+key(t.section)]=t;});
+    var byChest={};(remote.participants||[]).forEach(function(t){byChest[key(t.chestNo)]=t;});
+    var byGroup={};(remote.groups||[]).forEach(function(t){byGroup[key(t.groupChestNo)+'|'+key(t.name)]=t;});
+    var teamMap={},itemMap={};
+    (incoming.teams||[]).forEach(function(t){
+      var old=t.id, found=byTeam[key(t.name)];
+      if(found){t.id=found.id;teamMap[old]=found.id;}
+    });
+    (incoming.items||[]).forEach(function(t){
+      var old=t.id,found=byItem[key(t.code)+'|'+key(t.name)+'|'+key(t.section)];
+      if(found){t.id=found.id;itemMap[old]=found.id;}
+    });
+    (incoming.participants||[]).forEach(function(p){
+      var found=byChest[key(p.chestNo)];
+      if(found){p.id=found.id;}
+      p.items=(p.items||[]).map(function(id){return itemMap[id]||id;});
+    });
+    (incoming.groups||[]).forEach(function(g){
+      var found=byGroup[key(g.groupChestNo)+'|'+key(g.name)];
+      if(found)g.id=found.id;
+      if(g.itemId!=null)g.itemId=itemMap[g.itemId]||g.itemId;
+      g.itemIds=(g.itemIds||[]).map(function(id){return itemMap[id]||id;});
+    });
+    (incoming.marks||[]).forEach(function(m){m.itemId=itemMap[m.itemId]||m.itemId;});
+    (incoming.bonuses||[]).forEach(function(b){b.teamId=teamMap[b.teamId]||b.teamId;});
+    // Never silently skip group scores: the current marks table only
+    // represents participant_id, not a group chest number.
+    var chestSet=new Set((incoming.participants||[]).map(function(p){return String(p.chestNo);}));
+    var unsupported=(incoming.marks||[]).filter(function(m){return !chestSet.has(String(m.chestNo));});
+    if(unsupported.length)throw new Error(unsupported.length+' group/unknown mark records require group-mark storage support. No restore started.');
     sync.rememberSnapshot(remote);
     for(var i=0;i<fields.length;i++){
-      if(!Object.prototype.hasOwnProperty.call(data,fields[i]))continue;
-      if(fields[i]==='config')_mem.config=data.config;
-      else _mem[fields[i]]=data[fields[i]];
+      if(!Object.prototype.hasOwnProperty.call(incoming,fields[i]))continue;
+      if(fields[i]==='config')_mem.config=incoming.config;
+      else _mem[fields[i]]=incoming[fields[i]];
       await sync[methods[i]](_mem[fields[i]]);
     }
     // Read back authoritative server state rather than claiming success from
