@@ -11574,11 +11574,11 @@ async function _applyImportData(data){
     });
     (incoming.marks||[]).forEach(function(m){m.itemId=itemMap[m.itemId]||m.itemId;});
     (incoming.bonuses||[]).forEach(function(b){b.teamId=teamMap[b.teamId]||b.teamId;});
-    // Never silently skip group scores: the current marks table only
-    // represents participant_id, not a group chest number.
+    // Fail safely if a mark chest number matches neither a participant nor a group.
     var chestSet=new Set((incoming.participants||[]).map(function(p){return String(p.chestNo);}));
+    (incoming.groups||[]).forEach(function(g){chestSet.add(String(g.groupChestNo));});
     var unsupported=(incoming.marks||[]).filter(function(m){return !chestSet.has(String(m.chestNo));});
-    if(unsupported.length)throw new Error(unsupported.length+' group/unknown mark records require group-mark storage support. No restore started.');
+    if(unsupported.length)throw new Error(unsupported.length+' marks have unknown chest numbers. No restore started.');
     sync.rememberSnapshot(remote);
     for(var i=0;i<fields.length;i++){
       if(!Object.prototype.hasOwnProperty.call(incoming,fields[i]))continue;
