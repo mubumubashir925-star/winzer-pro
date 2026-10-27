@@ -330,11 +330,7 @@ async function _wzBootstrapAdminSync(orgId){
     // with the empty remote default.
     var remoteConfigEmpty = !snap.config || Object.keys(snap.config).length===0;
     var localHasConfig = _mem.config && Object.keys(_mem.config).length>0;
-    if(remoteConfigEmpty && localHasConfig){
-      window.WinzeraSync.pushConfig(_mem.config).catch(function(e){ console.error('Winzera config push failed:', e); });
-    }else{
-      _mem.config=snap.config||{};
-    }
+    _mem.config=snap.config||{};
     _mem.teams=snap.teams;
     _mem.sections=snap.sections;
     _mem.items=snap.items;
