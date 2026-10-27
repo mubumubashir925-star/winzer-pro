@@ -2,7 +2,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const sb=window.supabase.createClient('https://wzecrbhwlryzucgbpoxu.supabase.co','sb_publishable_HUJ7n4ESUTsAu9l8X8iu2g_el2aKuxK',{auth:{persistSession:true,autoRefreshToken:true}});
-const busy=x=>$('busy').classList.toggle('active',x),notice=x=>$('notice').textContent=x||'';
+const busy=x=>$('busy').classList.toggle('active',x),notice=x=>{const el=$('notice');el.textContent=x||'';clearTimeout(window._wzToastTimeout);if(x)window._wzToastTimeout=setTimeout(()=>{el.textContent=''},5000)};
 const reserved=new Set(['super-admin','super','admin','api','assets','icons','judge','broadcast','index','login','app','manifest']);
 let institutions=[];
 async function authorized(){const {data:{user}}=await sb.auth.getUser();if(!user)return false;const {data}=await sb.from('users').select('role').eq('id',user.id).single();return data?.role==='super_admin';}
