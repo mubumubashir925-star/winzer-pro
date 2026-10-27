@@ -361,6 +361,10 @@ async function _wzBootstrapAdminSync(orgId){
     if(window.WinzeraBusy)window.WinzeraBusy.show('Loading organization data…');
     var snap = await window.WinzeraSync.pullOrgSnapshot();
     applySnap(snap);
+    // Public results are enabled automatically for the signed-in institution.
+    // No manual start action is required; the public link remains permanent.
+    try{ await window.WinzeraSync.startBroadcasting(); broadcastPublicUpdate(); }
+    catch(pubErr){ console.error('Automatic public results setup failed:',pubErr); }
   }catch(e){ console.error('Winzera initial sync failed:', e); }finally{if(window.WinzeraBusy)window.WinzeraBusy.hide();}
 
   window.WinzeraSync.startRealtime(orgId, function(table, payload){
@@ -378,6 +382,7 @@ async function _wzBootstrapAdminSync(orgId){
         }
         var snap = await window.WinzeraSync.pullOrgSnapshot();
         applySnap(snap);
+        broadcastPublicUpdate();
       }catch(e){ console.error('Winzera realtime refresh failed:', e); }
     }, 400);
   });
