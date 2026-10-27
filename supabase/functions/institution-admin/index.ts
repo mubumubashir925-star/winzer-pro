@@ -18,7 +18,7 @@ Deno.serve(async req=>{
  const {data:profile,error:profileError}=await admin.from('users').select('role').eq('id',user.id).single();
  if(profileError||profile?.role!=='super_admin')return json({error:'Super Admin required'},403);
  const b=await req.json(),action=b.action;
- const fetchOrg=async()=>{const {data,error}=await admin.from('institution_management').select('*,organizations!inner(name,slug)').eq('org_id',b.id).single();if(error||!data)throw Error('Institution not found');return data};
+ const fetchOrg=async()=>{const {data,error}=await admin.from('institution_management').select('*,organizations!inner(name,slug)').eq('org_id',b.id).maybeSingle();if(error)throw error;if(!data)throw Error('This is a legacy institution without management settings. Migrate it before editing or deleting.');return data};
  if(action==='list'){
  const {data:orgs,error}=await admin.from('organizations').select('id,name,slug').order('name');if(error)throw error;
  const {data:meta,error:metaErr}=await admin.from('institution_management').select('*');if(metaErr)throw metaErr;
