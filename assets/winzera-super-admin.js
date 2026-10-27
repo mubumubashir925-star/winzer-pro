@@ -37,14 +37,40 @@ function renderList(){
  button('⚿ Reset password',()=>resetPassword(o));
  button(o.suspended?'▶ Activate':'Ⅱ Suspend',()=>act('status',{id:o.id,suspended:!o.suspended},'Change institution status?'));
  button('⌂ Share',()=>showShare(o));
- button('▣ Delete',()=>act('delete',{id:o.id},'Permanently delete this institution and its data?'));
+ button('▣ Delete',()=>deleteInstitution(o));
  body.append(actions);wrap.append(body);box.append(wrap);
  }
 }
 function showShare(o,password){const u=location.origin+'/'+o.slug;const msg=o.name+' - Winzera Pro\n\nPublic page (share with participants and parents):\n'+u+'\n\nAdmin login (staff only):\n'+u+'/admin\nUsername: '+(o.admin_username||'admin')+(password?'\nPassword: '+password:'\nPassword: (use the password set by the administrator)')+'\n\nPlease change the password after first login. Before installing the PWA, set the institution app name in its profile.';$('shareText').value=msg;$('shareDialog').showModal();}
 async function act(action,payload,question){if(question&&!confirm(question))return;busy(true);$('busy').textContent=action==='delete'?'Deleting institution…':'Saving changes…';notice('');try{await api(action,payload);await load();notice('Saved successfully.')}catch(e){notice(e.message)}finally{busy(false)}}
-async function edit(o){const name=prompt('Institution name',o.name);if(name===null)return;const plan=prompt('Plan',o.plan||'standard');if(plan===null)return;const contact=prompt('Contact',o.contact||'');if(contact===null)return;const notes=prompt('Notes',o.notes||'');if(notes===null)return;await act('edit',{id:o.id,name,plan,contact,notes});}
-async function resetPassword(o){const password=prompt('New password for '+o.admin_username+' (minimum 8 characters)');if(password===null)return;if(password.length<8){notice('Password must be at least 8 characters');return;}busy(true);try{await api('reset-password',{id:o.id,password});notice('Password changed. Share it privately with the institution.');showShare(o,password)}catch(e){notice(e.message)}finally{busy(false)}}
+function formDialog(title,fields,onSave,warning=''){
+ const d=document.createElement('dialog');d.className='modal';d.style.cssText='padding:22px;width:min(94vw,430px);max-height:85vh;overflow:auto;z-index:2147483640';
+ const form=document.createElement('form');form.style.cssText='display:grid;gap:12px';form.onsubmit=async e=>{e.preventDefault();const values={};fields.forEach(f=>values[f.key]=form.elements.namedItem(f.key).value);const submit=form.querySelector('[type=submit]');submit.disabled=true;submit.textContent='Saving…';try{await onSave(values);d.close();d.remove()}catch(err){errBox.textContent=err.message||String(err);submit.disabled=false;submit.textContent='Save changes'}};
+ const heading=document.createElement('h2');heading.textContent=title;form.append(heading);
+ if(warning){const p=document.createElement('p');p.style.cssText='color:#9b3232;line-height:1.5';p.textContent=warning;form.append(p)}
+ for(const f of fields){const label=document.createElement('label');label.textContent=f.label;const input=document.createElement(f.multiline?'textarea':'input');input.name=f.key;if(!f.multiline)input.type=f.type||'text';input.value=f.value??'';input.required=!!f.required;if(f.minLength)input.minLength=f.minLength;input.style.marginTop='5px';label.append(input);form.append(label)}
+ const errBox=document.createElement('p');errBox.style.color='#b91c1c';form.append(errBox);
+ const controls=document.createElement('div');controls.style.cssText='display:flex;gap:8px;justify-content:flex-end';const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Cancel';cancel.style.background='#e7edf2';cancel.style.color='#233';cancel.onclick=()=>{d.close();d.remove()};const save=document.createElement('button');save.type='submit';save.textContent='Save changes';controls.append(cancel,save);form.append(controls);d.append(form);document.body.append(d);d.showModal();return d;
+}
+async function edit(o){
+ formDialog('Edit institution — '+o.name,[
+ {key:'name',label:'Institution name',value:o.name,required:true},
+ {key:'plan',label:'Plan',value:o.plan||'standard',required:true},
+ {key:'contact',label:'Contact',value:o.contact||''},
+ {key:'notes',label:'Notes',value:o.notes||'',multiline:true}
+ ],async v=>{busy(true);try{await api('edit',{id:o.id,...v});await load();notice('Institution updated')}finally{busy(false)}});
+}
+async function resetPassword(o){
+ formDialog('Reset admin password — '+o.name,[{key:'password',label:'New password (at least 8 characters)',type:'password',required:true,minLength:8}],async v=>{
+ busy(true);try{await api('reset-password',{id:o.id,password:v.password});notice('Password reset. Share privately.');showShare(o,v.password)}finally{busy(false)}
+ },'The previous password will stop working. This does not change the admin username.');
+}
+async function deleteInstitution(o){
+ formDialog('Delete institution — '+o.name,[{key:'confirmation',label:'Type '+o.slug+' to confirm deletion',required:true}],async v=>{
+ if(v.confirmation!==o.slug)throw Error('Institution slug does not match');
+ busy(true);try{await api('delete',{id:o.id});await load();notice('Institution deleted')}finally{busy(false)}
+ },'Deletion is permanent. Institutions containing competition data cannot be deleted until their data has been safely handled.');
+}
 async function render(){busy(true);try{const ok=await authorized();$('login').classList.toggle('hidden',ok);$('dashboard').classList.toggle('hidden',!ok);$('logout').classList.toggle('hidden',!ok);if(ok)await load();}catch(e){notice(e.message)}finally{busy(false)}}
 $('loginForm').onsubmit=async e=>{e.preventDefault();busy(true);notice('');try{const {error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)throw error;if(!await authorized()){await sb.auth.signOut();throw Error('Super Admin access required')}$('password').value='';}catch(e){notice(e.message)}finally{busy(false)}await render()};
 $('logout').onclick=async()=>{busy(true);await sb.auth.signOut();busy(false);await render()};
