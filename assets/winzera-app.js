@@ -13203,7 +13203,7 @@ async function checkAuthAndNavigate(){
     var session=getSession();
     var cfg=DB.config();
     document.getElementById('loginFestName').textContent=cfg.festName||'Winzera';
-    var isLoggedIn = !!(session && (session.role==='admin' || session.role==='team'));
+    var isLoggedIn = !!(session && (session.role==='admin' || session.role==='team'));var requestedOrg=location.pathname.split('/').filter(Boolean);if(requestedOrg.length===2 && requestedOrg[1]==='admin' && session && session.role==='admin' && session.orgCode!==requestedOrg[0]){isLoggedIn=false;clearSession();}
     if(isLoggedIn) _wzShowSyncingOverlay('Loading your dashboard\u2026');
     // Re-validate against the real backend on every relaunch — a session
     // object sitting in localStorage is never enough on its own to grant
