@@ -464,6 +464,17 @@ async function pullOrgSnapshot() {
     };
   }).filter(m => m.chestNo !== undefined);
 
+  // Group result marks are stored with their group, because marks.participant_id
+  // cannot represent a group chest number.
+  (groupsRes.data || []).forEach(g => {
+    if (!Array.isArray(g.result_marks)) return;
+    g.result_marks.forEach(m => {
+      localMarks.push(Object.assign({}, m, {
+        itemId: m.itemId, chestNo: Number(g.group_chest_no)
+      }));
+    });
+  });
+
   // ---- groups: team_id/section_id -> names, item_ids -> local ids ----
   const localGroups = (groupsRes.data || []).map(g => {
     const primaryItemId = (g.item_ids && g.item_ids[0]) || null;
@@ -718,6 +729,24 @@ async function pushMarks(marksArray) {
   const prevByKey = {}; prev.forEach(m => { prevByKey[keyOf(m)] = m; });
   const seen = {};
 
+  // Group chest numbers do not map to participants.
+  const groupsByChest = {};
+  (_lastKnown.groups || []).forEach(g => { if(g.groupChestNo!=null) groupsByChest[String(g.groupChestNo)] = g; });
+  const groupMarks = {};
+  marksArray.forEach(m => {
+    const g = groupsByChest[String(m.chestNo)];
+    if(g) {
+      const gid = _isUuid(g.id) ? g.id : null;
+      if(!gid) throw new Error('Group not synced: '+g.name);
+      if(!groupMarks[gid]) groupMarks[gid]=[];
+      groupMarks[gid].push(m);
+    }
+  });
+  for(const [groupId, rows] of Object.entries(groupMarks)){
+    const {error}=await sb.from('groups').update({result_marks:rows}).eq('id',groupId).eq('org_id',_orgId);
+    if(error)throw error;
+  }
+
   // local marks are keyed by chestNo — need chestNo -> remote participant_id
   const participants = _lastKnown.participants || [];
   const chestToParticipantId = {};
@@ -731,7 +760,8 @@ async function pushMarks(marksArray) {
     seen[key] = true;
     const participantId = chestToParticipantId[mark.chestNo];
     const itemId = _itemLocalToRemoteId[mark.itemId] || (_isUuid(mark.itemId) ? mark.itemId : null);
-    if (!participantId || !itemId) continue; // participant/item not synced yet — retry next cycle
+    if (groupsByChest[String(mark.chestNo)]) continue; // saved to groups.result_marks above
+    if (!participantId || !itemId) throw new Error('Mark dependency missing for chest '+mark.chestNo);
 
     const before = prevByKey[key];
     if (before && JSON.stringify(before) === JSON.stringify(mark)) continue;
@@ -748,10 +778,10 @@ async function pushMarks(marksArray) {
       .eq('participant_id', participantId).eq('item_id', itemId).is('judge_id', null).maybeSingle();
     if (existing) {
       const { error } = await sb.from('marks').update(payload).eq('id', existing.id);
-      if (error) console.error('Winzera sync: mark update failed', error);
+      if (error) throw error;
     } else {
       const { error } = await sb.from('marks').insert(payload);
-      if (error) console.error('Winzera sync: mark insert failed', error);
+      if (error) throw error;
     }
 
     // BUG FIX: the code letter lives on the local mark record, but is read
@@ -760,9 +790,9 @@ async function pushMarks(marksArray) {
     // stale (empty) value on the very next sync refresh.
     if (mark.codeLetter !== undefined) {
       const { error: codeErr } = await sb.from('item_assignments')
-        .update({ code_letter: mark.codeLetter || null })
-        .eq('participant_id', participantId).eq('item_id', itemId);
-      if (codeErr) console.error('Winzera sync: code letter write failed', codeErr);
+        .upsert({org_id:_orgId, participant_id:participantId,item_id:itemId,code_letter:mark.codeLetter||null},
+          {onConflict:'participant_id,item_id'});
+      if (codeErr) throw codeErr;
     }
   }
   for (const mark of prev) {
