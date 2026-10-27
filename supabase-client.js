@@ -947,29 +947,78 @@ async function pushBroadcastPayload(payload) {
 }
 
 /** Viewer side: resolve an org's short code and fetch its current broadcast state. No login needed. */
+// Public results: durable per-institution IndexedDB cache. Never stores credentials.
+// Read a small version marker on reconnect; fetch the JSON only when it changes.
+const _wzPublicCacheDb='winzera-public-cache-v1';
+function _wzPublicStore(mode,fn){
+  return new Promise((resolve,reject)=>{
+    if(typeof indexedDB==='undefined'){resolve(null);return;}
+    const request=indexedDB.open(_wzPublicCacheDb,1);
+    request.onupgradeneeded=()=>request.result.createObjectStore('results');
+    request.onerror=()=>reject(request.error);
+    request.onsuccess=()=>{
+      const db=request.result,tx=db.transaction('results',mode),store=tx.objectStore('results');
+      let req;try{req=fn(store);}catch(e){db.close();reject(e);return;}
+      req.onsuccess=()=>resolve(req.result||null);
+      req.onerror=()=>reject(req.error);
+      tx.oncomplete=()=>db.close();
+      tx.onerror=()=>db.close();
+    };
+  });
+}
+async function readPublicCache(slug){
+  try{return await _wzPublicStore('readonly',s=>s.get(String(slug).toLowerCase()));}
+  catch(e){console.warn('Public cache unavailable',e);return null;}
+}
+async function writePublicCache(slug,entry){
+  try{await _wzPublicStore('readwrite',s=>s.put(entry,String(slug).toLowerCase()));}
+  catch(e){console.warn('Could not persist public results',e);}
+}
 async function fetchBroadcastPayload(orgSlug) {
-  const sb = await _ensureClient();
-  const { data, error } = await sb.from('organizations')
-    .select('id, broadcast_enabled, broadcast_payload').eq('slug', orgSlug).maybeSingle();
-  if (error) throw error;
-  if (!data) return { status: 'not_found' };
-  if (!data.broadcast_enabled) return { status: 'ended' };
-  return { status: 'ok', payload: data.broadcast_payload || null, orgId: data.id };
+  const cached=await readPublicCache(orgSlug);
+  try{
+    const sb=await _ensureClient();
+    const {data,error}=await sb.from('organizations')
+      .select('id,broadcast_enabled,broadcast_payload_updated_at')
+      .eq('slug',orgSlug).maybeSingle();
+    if(error)throw error;
+    if(!data){return {status:'not_found'};}
+    if(!data.broadcast_enabled){return {status:'ended',orgId:data.id};}
+    if(cached && cached.orgId===data.id && cached.version===data.broadcast_payload_updated_at && cached.payload){
+      return {status:'ok',payload:cached.payload,orgId:data.id,fromCache:true};
+    }
+    const {data:full,error:fullError}=await sb.from('organizations')
+      .select('broadcast_payload,broadcast_payload_updated_at')
+      .eq('id',data.id).eq('broadcast_enabled',true).maybeSingle();
+    if(fullError)throw fullError;
+    if(!full)return {status:'ended',orgId:data.id};
+    const entry={orgId:data.id,version:full.broadcast_payload_updated_at,payload:full.broadcast_payload||null};
+    await writePublicCache(orgSlug,entry);
+    return {status:'ok',payload:entry.payload,orgId:data.id};
+  }catch(e){
+    // Offline public viewing is explicitly stale; never use a different institution cache.
+    if(cached && cached.payload)return {status:'ok',payload:cached.payload,orgId:cached.orgId,offline:true};
+    throw e;
+  }
 }
 
-/** Viewer side: live updates — calls onPayload(status, payload) on every change. */
-let _broadcastViewerChannel = null;
-async function subscribeBroadcastPayload(orgId, onPayload) {
-  const sb = await _ensureClient();
-  if (_broadcastViewerChannel) { try { await sb.removeChannel(_broadcastViewerChannel); } catch (e) {} }
-  _broadcastViewerChannel = sb.channel('wz:broadcast-viewer:' + orgId)
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'organizations', filter: `id=eq.${orgId}` }, (payload) => {
-      const row = payload.new;
-      if (!row) return;
-      if (!row.broadcast_enabled) onPayload('ended', null);
-      else onPayload('ok', row.broadcast_payload || null);
-    })
-    .subscribe();
+/** Realtime only sends a small invalidation; reload the payload on a changed version. */
+let _broadcastViewerChannel=null;
+async function subscribeBroadcastPayload(orgId,onPayload){
+  const sb=await _ensureClient();
+  if(_broadcastViewerChannel){try{await sb.removeChannel(_broadcastViewerChannel);}catch(e){}}
+  const slug=location.pathname.split('/').filter(Boolean)[0]||new URLSearchParams(location.search).get('org');
+  _broadcastViewerChannel=sb.channel('wz:public:'+orgId)
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'organizations',filter:`id=eq.${orgId}`},async event=>{
+      try{
+        const row=event.new;
+        if(!row)return;
+        if(!row.broadcast_enabled){onPayload('ended',null);return;}
+        const fresh=await fetchBroadcastPayload(slug);
+        if(fresh.status==='ok')onPayload('ok',fresh.payload);
+        else onPayload('ended',null);
+      }catch(e){console.warn('Public results refresh failed',e);}
+    }).subscribe();
   return _broadcastViewerChannel;
 }
 
