@@ -13226,7 +13226,7 @@ async function checkAuthAndNavigate(){
           if(!teamInfo){ isLoggedIn=false; clearSession(); }
           else _wzApplyTeamDashboard(teamInfo.dash);
         }
-      }catch(e){ console.error('Session revalidation failed:', e); }
+      }catch(e){ console.error('Session revalidation failed:', e); isLoggedIn=false;clearSession(); }
     }
     _wzHideSyncingOverlay();
     if(isLoggedIn){
