@@ -166,6 +166,10 @@ for each row execute function public.wz_bump_settings_revision();
 -- RLS must continue to limit SELECT of data_revision to the right institution.
 -- Verify each referenced table has org_id, and that the above triggers deployed.
 
+
+-- Legacy group-result support: group chest numbers are not participant IDs.
+-- Keep their score rows in a JSONB column on the group itself.
+ALTER TABLE public.groups ADD COLUMN IF NOT EXISTS result_marks jsonb NOT NULL DEFAULT '[]'::jsonb;
 COMMIT;
 
 -- After execution, verify policies, organizations and revision triggers.
