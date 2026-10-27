@@ -1,0 +1,1 @@
+Upload the CONTENTS of this ZIP to the GitHub repository root. This is a prepared build, NOT a verified production deployment. CSS and main/vendor JS were extracted. Test login, judge links, PWA and browser console before production. Supabase RLS must be verified.

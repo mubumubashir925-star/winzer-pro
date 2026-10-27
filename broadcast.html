@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0d0618">
+<meta name="description" content="Winzera Public Broadcast Viewer">
+<title>Winzera - Live Results</title>
+<style>
+:root {
+  --bg: #0d0618; --bg2: #16092a; --bg3: #1e0d38; --card: #1a0d30; --card2: #221040;
+  --border: #3a1f6e; --text: #f0eaff; --text2: #b0a0d0; --text3: #7060a0;
+  --accent: #f0a500; --accent2: #e05c00; --gold: #ffd700;
+  --green: #00c896; --red: #ff4757; --blue: #4a9eff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { 
+  font-family: 'Exo 2', 'Segoe UI', sans-serif; 
+  background: var(--bg); 
+  color: var(--text); 
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+.header {
+  background: linear-gradient(135deg, #16092a, #1e0d38);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.header h1 {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--gold);
+  letter-spacing: 0.5px;
+}
+.status-badge {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #000;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.status-badge.live { animation: pulse 2s infinite; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+.loading {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text3);
+}
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.error-message {
+  background: rgba(255, 71, 87, 0.1);
+  border: 1px solid var(--red);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  color: var(--red);
+  margin: 20px;
+}
+.results-section {
+  margin-bottom: 24px;
+}
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text2);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.team-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+.team-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.team-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.total-marks {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--gold);
+}
+.participant-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.participant-row:last-child { border-bottom: none; }
+.participant-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.participant-photo {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border);
+}
+.participant-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.marks-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mark-item {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  text-align: center;
+  min-width: 50px;
+}
+.mark-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.mark-label {
+  font-size: 0.65rem;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+.rank-badge {
+  background: linear-gradient(135deg, var(--gold), #b8860b);
+  color: #000;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.rank-badge.silver { background: linear-gradient(135deg, #c0c0c0, #808080); }
+.rank-badge.bronze { background: linear-gradient(135deg, #cd7f32, #8b4513); }
+.footer {
+  text-align: center;
+  padding: 20px;
+  color: var(--text3);
+  font-size: 0.75rem;
+  border-top: 1px solid var(--border);
+  margin-top: 40px;
+}
+@media (max-width: 600px) {
+  .header h1 { font-size: 1.1rem; }
+  .team-card { padding: 12px; }
+  .participant-row { grid-template-columns: 1fr; gap: 8px; }
+  .marks-display { justify-content: flex-end; }
+}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700;800&display=swap">
+</head>
+<body>
+<div class="header">
+  <h1 id="orgName">Loading...</h1>
+  <span class="status-badge live" id="liveStatus">● Live</span>
+</div>
+
+<div class="content">
+  <div id="loading" class="loading">
+    <div class="loading-spinner"></div>
+    <p>Connecting to live results...</p>
+  </div>
+  
+  <div id="error" class="error-message" style="display:none"></div>
+  
+  <div id="results" style="display:none">
+    <!-- Results will be populated here -->
+  </div>
+</div>
+
+<div class="footer">
+  <p>Winzera Live Broadcast • Auto-refreshes every 5 seconds</p>
+</div>
+
+<script type="module">
+// ============================================
+// BROADCAST VIEWER - PUBLIC RESULTS DISPLAY
+// ============================================
+
+// NOTE: import.meta.env only exists inside a Vite build step. This file is
+// served as a plain static HTML page, so that was always empty and this
+// page could never actually connect. The anon/publishable key below is
+// safe to ship client-side — real access control is enforced by the
+// Postgres Row Level Security policies in schema-v2-migration.sql, which
+// only expose an org's data here while it has an active broadcast link.
+const SUPABASE_URL = 'https://wzecrbhwlryzucgbpoxu.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_HUJ7n4ESUTsAu9l8X8iu2g_el2aKuxK';
+
+let supabase = null;
+let currentOrg = null;
+let broadcastToken = null;
+
+// Parse URL parameters
+const urlParams = new URLSearchParams(window.location.search);
+broadcastToken = urlParams.get('token');
+const orgId = urlParams.get('org');
+
+// Initialize Supabase
+async function initSupabase() {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    showError('Configuration error: broadcast service unavailable. Please contact the event organizer.');
+    return false;
+  }
+  
+  try {
+    const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    return true;
+  } catch (error) {
+    console.error('Failed to initialize Supabase:', error);
+    showError('Failed to connect to server');
+    return false;
+  }
+}
+
+// Validate broadcast token
+async function validateBroadcast() {
+  if (!supabase) return false;
+  
+  try {
+    // If token provided, validate it
+    if (broadcastToken) {
+      const { data, error } = await supabase
+        .from('broadcast_links')
+        .select('*, organizations(*)')
+        .eq('token', broadcastToken)
+        .eq('is_active', true)
+        .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+        .single();
+      
+      if (error || !data) {
+        showError('Invalid or expired broadcast link');
+        return false;
+      }
+      
+      currentOrg = data.organizations;
+      return true;
+    }
+    
+    // If org ID provided directly, fetch organization
+    if (orgId) {
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('*')
+        .eq('id', orgId)
+        .single();
+      
+      if (error || !data) {
+        showError('Organization not found');
+        return false;
+      }
+      
+      currentOrg = data;
+      return true;
+    }
+    
+    showError('Missing broadcast token or organization ID');
+    return false;
+  } catch (error) {
+    console.error('Validation error:', error);
+    showError('Connection error');
+    return false;
+  }
+}
+
+// Fetch all results for an organization
+async function fetchResults() {
+  if (!supabase || !currentOrg) return null;
+  
+  try {
+    // Fetch teams with their participants
+    const { data: teams, error: teamsError } = await supabase
+      .from('teams')
+      .select('*')
+      .eq('org_id', currentOrg.id)
+      .order('name', { ascending: true });
+    
+    if (teamsError) throw teamsError;
+    
+    // Fetch participants for each team
+    const teamsWithParticipants = await Promise.all(
+      teams.map(async (team) => {
+        const { data: participants, error: participantsError } = await supabase
+          .from('participants')
+          .select('*')
+          .eq('org_id', currentOrg.id)
+          .eq('team_id', team.id);
+        
+        if (participantsError) throw participantsError;
+        
+        // Fetch marks for each participant
+        const participantsWithMarks = await Promise.all(
+          participants.map(async (participant) => {
+            const { data: marks, error: marksError } = await supabase
+              .from('marks')
+              .select('*, items(name, max_marks)')
+              .eq('org_id', currentOrg.id)
+              .eq('participant_id', participant.id)
+              .eq('is_final', true);
+            
+            if (marksError) throw marksError;
+            
+            // Calculate total marks
+            let totalObtained = 0;
+            let totalMax = 0;
+            const itemMarks = {};
+            
+            marks.forEach(mark => {
+              totalObtained += parseFloat(mark.marks_obtained || 0);
+              totalMax += parseFloat(mark.items.max_marks || 0);
+              itemMarks[mark.items.name] = {
+                obtained: mark.marks_obtained,
+                max: mark.items.max_marks
+              };
+            });
+            
+            // Check for bonuses
+            const { data: bonuses } = await supabase
+              .from('bonuses')
+              .select('bonus_marks')
+              .eq('org_id', currentOrg.id)
+              .eq('participant_id', participant.id);
+            
+            if (bonuses && bonuses.length > 0) {
+              bonuses.forEach(b => {
+                totalObtained += parseFloat(b.bonus_marks || 0);
+              });
+            }
+            
+            return {
+              ...participant,
+              totalMarks: totalObtained,
+              maxMarks: totalMax,
+              itemMarks
+            };
+          })
+        );
+        
+        // Sort participants by total marks
+        participantsWithMarks.sort((a, b) => b.totalMarks - a.totalMarks);
+        
+        return {
+          ...team,
+          participants: participantsWithMarks
+        };
+      })
+    );
+    
+    // Sort teams by best participant's score
+    teamsWithParticipants.sort((a, b) => {
+      const aBest = a.participants[0]?.totalMarks || 0;
+      const bBest = b.participants[0]?.totalMarks || 0;
+      return bBest - aBest;
+    });
+    
+    return teamsWithParticipants;
+  } catch (error) {
+    console.error('Error fetching results:', error);
+    throw error;
+  }
+}
+
+// Render results to DOM
+function renderResults(teams) {
+  const container = document.getElementById('results');
+  if (!container) return;
+  
+  let html = '';
+  
+  teams.forEach((team, teamIndex) => {
+    html += `
+      <div class="results-section">
+        <div class="section-title">${escapeHtml(team.name)}</div>
+        <div class="team-card">
+          ${team.participants.map((participant, pIndex) => {
+            const rank = pIndex + 1;
+            let rankClass = '';
+            if (rank === 1) rankClass = 'gold';
+            else if (rank === 2) rankClass = 'silver';
+            else if (rank === 3) rankClass = 'bronze';
+            
+            return `
+              <div class="participant-row">
+                <div class="participant-info">
+                  ${rank <= 3 ? `<div class="rank-badge ${rankClass}">${rank}</div>` : ''}
+                  ${participant.photo ? 
+                    `<img src="${escapeHtml(participant.photo)}" alt="" class="participant-photo">` : 
+                    '<div class="participant-photo" style="background:var(--bg3);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--text3)">' + 
+                    (participant.name.charAt(0).toUpperCase()) + '</div>'
+                  }
+                  <div>
+                    <div class="participant-name">${escapeHtml(participant.name)}</div>
+                    ${participant.roll_number ? `<div style="font-size:0.7rem;color:var(--text3)">Roll: ${escapeHtml(participant.roll_number)}</div>` : ''}
+                  </div>
+                </div>
+                <div class="marks-display">
+                  ${Object.entries(participant.itemMarks || {}).map(([itemName, marks]) => `
+                    <div class="mark-item">
+                      <div class="mark-value">${marks.obtained}/${marks.max}</div>
+                      <div class="mark-label">${escapeHtml(itemName)}</div>
+                    </div>
+                  `).join('')}
+                  <div class="mark-item" style="border-color:var(--accent)">
+                    <div class="mark-value" style="color:var(--gold)">${participant.totalMarks}/${participant.maxMarks}</div>
+                    <div class="mark-label">Total</div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  });
+  
+  container.innerHTML = html;
+}
+
+// Show loading state
+function showLoading() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('error').style.display = 'none';
+  document.getElementById('results').style.display = 'none';
+}
+
+// Show error message
+function showError(message) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('error').style.display = 'block';
+  document.getElementById('error').textContent = message;
+  document.getElementById('results').style.display = 'none';
+}
+
+// Show results
+function showResults() {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('error').style.display = 'none';
+  document.getElementById('results').style.display = 'block';
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Subscribe to realtime updates
+function subscribeToUpdates() {
+  if (!supabase || !currentOrg) return;
+  
+  // Subscribe to marks changes
+  supabase
+    .channel('public:marks')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'marks',
+        filter: `org_id=eq.${currentOrg.id}`
+      },
+      () => {
+        console.log('Marks updated, refreshing...');
+        refreshResults();
+      }
+    )
+    .subscribe();
+  
+  // Subscribe to teams changes
+  supabase
+    .channel('public:teams')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'teams',
+        filter: `org_id=eq.${currentOrg.id}`
+      },
+      () => {
+        console.log('Teams updated, refreshing...');
+        refreshResults();
+      }
+    )
+    .subscribe();
+  
+  // Subscribe to participants changes
+  supabase
+    .channel('public:participants')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'participants',
+        filter: `org_id=eq.${currentOrg.id}`
+      },
+      () => {
+        console.log('Participants updated, refreshing...');
+        refreshResults();
+      }
+    )
+    .subscribe();
+}
+
+// Refresh results
+async function refreshResults() {
+  try {
+    const teams = await fetchResults();
+    if (teams) {
+      renderResults(teams);
+      document.getElementById('orgName').textContent = currentOrg.name || 'Live Results';
+      showResults();
+    }
+  } catch (error) {
+    console.error('Refresh error:', error);
+  }
+}
+
+// Initialize broadcast viewer
+async function init() {
+  showLoading();
+  
+  const initialized = await initSupabase();
+  if (!initialized) return;
+  
+  const validated = await validateBroadcast();
+  if (!validated) return;
+  
+  await refreshResults();
+  subscribeToUpdates();
+  
+  // Auto-refresh every 5 seconds as backup
+  setInterval(refreshResults, 5000);
+}
+
+// Start the app
+init();
+</script>
+</body>
+</html>

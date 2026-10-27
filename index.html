@@ -1,1 +1,278 @@
-a
+﻿<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0d0618">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Winzera">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+/* Hide app shell until JS runs - prevents icon flash */
+html { background: #0d0618; }
+</style>
+<style>
+/* ---- Source protection: disable text/image selection & drag ---- */
+html, body, #app, #app * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+/* Inputs, textareas and content-editable areas must stay usable */
+input, textarea, select, [contenteditable="true"] {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+}
+img, canvas, svg {
+  -webkit-user-drag: none;
+  user-drag: none;
+  pointer-events: auto;
+}
+</style>
+<style>
+@supports (padding-top: env(safe-area-inset-top)) {
+  .header { padding-top: calc(12px + env(safe-area-inset-top)); }
+}
+.modal-close-btn {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: var(--red);
+  border: none;
+  color: #fff;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 25%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 10;
+  font-weight: 400;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  transition: transform 0.15s, background 0.2s;
+}
+.modal-close-btn:hover {
+  background: #c0392b; /* darker red on hover */
+  transform: scale(1.05);
+}
+</style>
+<meta name="description" content="Event Management System">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<title>Winzera</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Exo+2:wght@300;400;600;700;800&family=Poppins:wght@700;800;900&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Exo+2:wght@300;400;600;700;800&family=Poppins:wght@700;800;900&display=swap"></noscript>
+<link rel="stylesheet" href="./assets/winzera-main.css">
+</head>
+<body>
+<!-- Install Banner -->
+<div id="installBanner" style="
+display:none;
+position:fixed;
+bottom:20px;
+left:20px;
+right:20px;
+z-index:9999;
+background:var(--card);
+border:1px solid var(--accent);
+border-radius:14px;
+padding:14px;
+box-shadow:0 8px 30px rgba(0,0,0,.4);
+">
+  <div style="font-weight:700;margin-bottom:8px">
+    <svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M12 18h.01"/><path d="M9 8l3-3 3 3"/><path d="M12 5v7"/></svg> Install Winzera App
+  </div>
+
+  <div style="font-size:.85rem;color:var(--text2);margin-bottom:12px">
+    Install Winzera on your device for a better experience.
+  </div>
+
+  <div style="display:flex;gap:8px">
+    <button id="installBannerBtn" class="btn btn-primary">
+      Install
+    </button>
+
+    <button onclick="closeInstallBanner()" class="btn btn-secondary">
+      Close
+    </button>
+  </div>
+</div>
+<div id="splash" role="status" aria-label="Loading Winzera">
+  <div class="wz14-persp">
+    <div class="wz14-coinwrap">
+      <div class="wz14-ring"></div>
+      <div class="wz14-coin">
+        <div class="wz14-face wz14-front">
+          <div class="wz14-clip">
+            <img src="https://image.qwenlm.ai/public_source/7c1cd681-e64a-49a2-97c0-5b5f83ef722b/1c813bc5d-9873-42f6-ad2a-6b30788feab7.png" alt="Winzera logo" onerror="this.style.display='none'">
+          </div>
+          <div class="wz14-gloss"></div>
+          <div class="wz14-sh"><i></i></div>
+          <span class="wz14-spk a">✦</span>
+          <span class="wz14-spk b">✦</span>
+        </div>
+        <div class="wz14-face wz14-back">W</div>
+      </div>
+    </div>
+    <div class="wz14-brand">
+      <div class="wz14-wm">WINZERA</div>
+      <div class="wz14-tg">Competition Management System</div>
+    </div>
+  </div>
+</div>
+<div id="app" style="display:none">
+  <div class="header">
+    <button class="back-btn hidden" id="backBtn" onclick="goBack()" aria-label="Go back"><svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></button>
+    <div class="title" id="headerTitleWrap">
+      <h2 id="pageTitle">Dashboard</h2>
+      <p id="pageSubtitle">Fest & Competition Manager</p>
+    </div>
+    <div class="header-actions" id="headerActionsWrap">
+      <button class="theme-toggle" onclick="toggleGlobalSearch()" id="gsearchBtn" title="Search" aria-label="Search"><svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+      <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn" title="Toggle theme" aria-label="Toggle dark or light theme"><svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg></button>
+      <button class="theme-toggle" onclick="signOut()" title="Sign out" aria-label="Sign out"><svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
+      <div class="fest-badge" id="festBadge" style="display:none">Setup</div>
+    </div>
+    <div class="gsearch-bar hidden" id="gsearchBar">
+      <input autocomplete="off" data-lpignore="true" data-1p-ignore="true" id="gsearchInput" placeholder="Search participants, items, teams..." oninput="_gsearchInput(this.value)">
+      <button class="gsearch-cancel" onclick="closeGlobalSearch()" type="button">Cancel</button>
+    </div>
+    <div class="gsearch-results hidden" id="gsearchResults"></div>
+  </div>
+  <div class="content" id="mainContent"></div>
+  <button class="fab-btn hidden" id="globalFab" onclick="handleFabClick()" title="Add" aria-label="Add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+  <nav class="bottom-nav">
+    <button class="nav-item active" onclick="navigate('dashboard')" id="nav-dashboard">
+      <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+      <span class="nav-label">Home</span>
+    </button>
+    <button class="nav-item" onclick="navigate('codes')" id="nav-codes">
+      <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M6 14h.01M10 14h.01M14 14h.01"/></svg></span>
+      <span class="nav-label">Codes</span>
+    </button>
+    <button class="nav-item" onclick="navigate('marks')" id="nav-marks">
+      <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
+      <span class="nav-label">Marks</span>
+    </button>
+    <button class="nav-item" onclick="navigate('results')" id="nav-results">
+      <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg></span>
+      <span class="nav-label">Results</span>
+    </button>
+    <button class="nav-item" onclick="navigate('points')" id="nav-points">
+      <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+      <span class="nav-label">Points</span>
+    </button>
+  </nav>
+</div>
+<div class="modal-overlay hidden" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<!-- ===== LOGIN SCREEN ===== -->
+<div id="loginScreen" style="display:none;position:fixed;inset:0;z-index:5000;background:var(--bg);overflow-y:auto">
+  <div id="loginCardBox" style="max-width:420px;margin:0 auto;padding:40px 20px 30px;min-height:100%;display:flex;flex-direction:column;justify-content:center">
+    <div style="text-align:center;margin-bottom:22px">
+      <div style="font-size:2.4rem;color:var(--accent);margin-bottom:6px"><svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M5 4H3v2a4 4 0 0 0 4 4"/><path d="M19 4h2v2a4 4 0 0 1-4 4"/></svg></div>
+      <div style="font-size:1.3rem;font-weight:900;letter-spacing:-.5px" id="loginFestName">Winzera</div>
+      <div style="font-size:.78rem;color:var(--text3)">Sign in to continue</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:18px;background:var(--bg3);border-radius:12px;padding:4px">
+      <button class="btn" id="loginTabAdmin" style="flex:1;background:var(--accent);color:#fff;font-weight:800" onclick="setLoginRole('admin')">Admin</button>
+      <button class="btn" id="loginTabTeam" style="flex:1;background:transparent;color:var(--text2);font-weight:800" onclick="setLoginRole('team')">Team Manager</button>
+    </div>
+
+    <div id="loginAdminPane"></div>
+
+    <div id="loginTeamPane" style="display:none"></div>
+    <div id="loginError" style="display:none;margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3);color:var(--red);font-size:.8rem;text-align:center"></div>
+  </div>
+</div>
+
+<!-- ===== PUBLIC VIEWER (Live Broadcast) — offline projector display ===== -->
+<div id="publicViewScreen" style="display:none;position:fixed;inset:0;z-index:4500;background:#05030d;color:#f0eaff;flex-direction:column;overflow:hidden">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 22px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;background:linear-gradient(180deg,rgba(255,255,255,.035),transparent)">
+    <div style="display:flex;align-items:center;gap:12px;min-width:0">
+      <img id="pubViewLogo" src="" style="display:none;width:42px;height:42px;border-radius:11px;object-fit:cover;box-shadow:0 0 16px rgba(255,255,255,.18);flex-shrink:0;border:1px solid rgba(255,255,255,.15)">
+      <div style="min-width:0">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="pubViewLiveDot" style="width:9px;height:9px;border-radius:50%;background:#ff4757;box-shadow:0 0 8px #ff4757;animation:pvLiveBlink 1.4s infinite;flex-shrink:0"></span>
+          <div id="pubViewFest" style="font-size:1.18rem;font-weight:900;letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Live Results</div>
+          <span id="pvPreviewBadge" style="display:none;flex-shrink:0;font-size:.62rem;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#3a2a00;background:linear-gradient(90deg,#ffe27a,#f0a500);padding:3px 9px;border-radius:20px;box-shadow:0 0 12px rgba(240,165,0,.55)">Preview</span>
+        </div>
+        <div id="pubViewFestMeta" style="display:none;font-size:.72rem;color:#a094c9;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:17px"></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+      <button class="btn btn-secondary btn-sm" id="pvRefreshBtn" onclick="_pvRequestRefresh(this)" title="Force an instant resync with the broadcaster" style="width:auto;padding:6px 10px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
+      <button class="btn btn-secondary btn-sm" id="pvExitBtn" onclick="_exitPublicView()" style="width:auto;padding:6px 14px">Exit</button>
+    </div>
+  </div>
+  <div id="pubViewBody" style="flex:1;overflow:hidden;display:flex;flex-direction:column;padding:20px;gap:18px"></div>
+</div>
+
+<script id="wz-vendor-libs" src="./assets/winzera-vendor.js"></script>
+<script id="wz-source-protection">
+// ---- Source protection (deterrent only, not real security) ----
+// Disable right-click / context menu
+document.addEventListener('contextmenu', function(e){ e.preventDefault(); return false; }, false);
+
+// Block common "view/inspect source" keyboard shortcuts
+document.addEventListener('keydown', function(e){
+  var k = (e.key || '').toUpperCase();
+  // F12
+  if (e.key === 'F12') { e.preventDefault(); return false; }
+  // Ctrl/Cmd + U (view source), Ctrl/Cmd + S (save page)
+  if ((e.ctrlKey || e.metaKey) && (k === 'U' || k === 'S')) { e.preventDefault(); return false; }
+  // Ctrl/Cmd + Shift + I / J / C (devtools panels)
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && (k === 'I' || k === 'J' || k === 'C')) { e.preventDefault(); return false; }
+}, false);
+
+// Lightweight anti-inspection debugger: periodically checks whether devtools
+// appear open (via the debugger-statement timing trick) and nudges focus away.
+// This is a deterrent for casual users only; it cannot stop a determined user.
+(function(){
+  var checkInterval = 2500;
+  function antiDebug(){
+    var start = performance.now();
+    debugger;
+    var elapsed = performance.now() - start;
+    if (elapsed > 100) {
+      // devtools likely open (the debugger statement paused execution)
+      try { console.clear(); } catch(e){}
+    }
+  }
+  setInterval(antiDebug, checkInterval);
+})();
+</script>
+<script src="./supabase-client.js"></script>
+<style id="wz-boot-style">#wz-boot-lock{position:fixed;inset:0;z-index:2147483646;background:rgba(10,7,22,.94);display:none;align-items:center;justify-content:center;flex-direction:column;color:#fff;font:600 15px system-ui,sans-serif;gap:18px;pointer-events:all}#wz-boot-lock[data-visible="true"]{display:flex}#wz-boot-lock .wz-spinner{width:42px;height:42px;border:4px solid #ffffff33;border-top-color:#ad8cff;border-radius:50%;animation:wz-spin .8s linear infinite}@keyframes wz-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){#wz-boot-lock .wz-spinner{animation:none}}</style><div id="wz-boot-lock" role="status" aria-live="polite" aria-label="Loading competition data"><div class="wz-spinner" aria-hidden="true"></div><span>Loading competition data…</span></div><script>window.WinzeraBusy={show:function(message){var e=document.getElementById('wz-boot-lock');if(e){e.querySelector('span').textContent=message||'Loading competition data…';e.dataset.visible='true';}},hide:function(){var e=document.getElementById('wz-boot-lock');if(e)e.dataset.visible='false';}};</script><script src="./assets/winzera-app.js"></script>
+
+<!-- PWA Update Banner -->
+<div id="_updateBanner" style="display:none;position:fixed;bottom:72px;left:50%;transform:translateX(-50%);z-index:9999;
+  background:linear-gradient(135deg,#1a2a4a,#0d1f3c);
+  border:1px solid rgba(240,165,0,0.45);border-radius:14px;
+  padding:12px 16px;gap:12px;align-items:center;
+  box-shadow:0 4px 24px rgba(0,0,0,0.5);max-width:340px;width:calc(100% - 32px);">
+  <span style="font-size:1.3rem"><svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></span>
+  <div style="flex:1;min-width:0">
+    <div style="font-size:.82rem;font-weight:700;color:#fff;margin-bottom:2px">Update Available</div>
+    <div style="font-size:.72rem;color:rgba(200,190,255,0.7)">A new version of Winzera is ready.</div>
+  </div>
+  <button id="_updateBtn" style="background:linear-gradient(135deg,#f0a500,#e05c00);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap">Update</button>
+  <button id="_updateDismiss" style="background:rgba(255,255,255,0.08);color:rgba(200,190,255,0.7);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:7px 10px;font-size:.78rem;cursor:pointer"><svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+</div>
+</body>
+</html>

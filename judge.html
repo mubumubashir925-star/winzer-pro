@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0d0618">
+<meta name="description" content="Winzera Judge Marking">
+<title>Winzera - Judge Marking</title>
+<style>
+:root {
+  --bg: #0d0618; --bg2: #16092a; --bg3: #1e0d38; --card: #1a0d30; --card2: #221040;
+  --border: #3a1f6e; --text: #f0eaff; --text2: #b0a0d0; --text3: #7060a0;
+  --accent: #f0a500; --accent2: #e05c00; --gold: #ffd700;
+  --green: #00c896; --red: #ff4757; --blue: #4a9eff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Exo 2', 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text);
+  min-height: 100vh; overflow-x: hidden; padding-bottom: 40px;
+}
+.header {
+  background: linear-gradient(135deg, #16092a, #1e0d38);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 20px; position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.header h1 { font-size: 1.15rem; font-weight: 800; color: var(--gold); letter-spacing: .3px; }
+.header .sub { font-size: .78rem; color: var(--text2); margin-top: 2px; }
+.content { max-width: 640px; margin: 0 auto; padding: 16px; }
+.card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  padding: 16px; margin-bottom: 12px;
+}
+.badge {
+  display: inline-block; background: rgba(240,165,0,.15); color: var(--accent);
+  border: 1px solid rgba(240,165,0,.35); padding: 3px 10px; border-radius: 20px;
+  font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+}
+.badge.locked { background: rgba(255,71,87,.15); color: var(--red); border-color: rgba(255,71,87,.35); }
+.row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.row:last-child { border-bottom: none; }
+.code-letter {
+  font-size: 1.15rem; font-weight: 800; color: var(--text);
+  background: var(--bg3); border-radius: 8px; padding: 6px 14px; min-width: 44px; text-align: center;
+}
+.score-input {
+  width: 90px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-size: 1.05rem; font-weight: 700; padding: 10px; text-align: center;
+}
+.score-input:focus { outline: none; border-color: var(--accent); }
+.score-input.saved { border-color: var(--green); }
+.save-status { font-size: .68rem; color: var(--text3); min-width: 54px; text-align: center; }
+.save-status.ok { color: var(--green); }
+.save-status.err { color: var(--red); }
+.btn-submit {
+  width: 100%; padding: 16px; margin-top: 4px; border: none; border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #1a0e00;
+  font-size: 1rem; font-weight: 800; cursor: pointer;
+}
+.btn-submit:disabled { opacity: .6; }
+.center-msg { text-align: center; padding: 60px 20px; color: var(--text2); }
+.center-msg svg { width: 48px; height: 48px; color: var(--text3); margin-bottom: 16px; }
+.center-msg h2 { color: var(--text); margin-bottom: 8px; font-size: 1.1rem; }
+.spinner {
+  width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1 id="hdrItem">Winzera Judge Marking</h1>
+  <div class="sub" id="hdrSub">Loading\u2026</div>
+</div>
+<div class="content" id="content">
+  <div class="center-msg"><div class="spinner"></div><p>Loading your marking sheet\u2026</p></div>
+</div>
+
+<script>
+// This is the anon/publishable key — safe to ship client-side. All real
+// access control is enforced by the judge_link_get_item / judge_submit_mark
+// functions in Postgres, which check the token themselves.
+const SUPABASE_URL = 'https://wzecrbhwlryzucgbpoxu.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_HUJ7n4ESUTsAu9l8X8iu2g_el2aKuxK';
+
+let supabase = null;
+let TOKEN = null;
+let ITEM_DATA = null;
+
+function getTokenFromUrl(){
+  const params = new URLSearchParams(window.location.search);
+  return params.get('token');
+}
+
+function showMessage(iconSvg, title, body){
+  document.getElementById('content').innerHTML =
+    '<div class="center-msg">'+iconSvg+'<h2>'+title+'</h2><p>'+body+'</p></div>';
+}
+
+const ICON_LOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+const ICON_WARN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg>';
+
+async function init(){
+  TOKEN = getTokenFromUrl();
+  if(!TOKEN){
+    showMessage(ICON_WARN, 'No marking link', 'This page needs a marking link from your event admin — please use the link they shared with you.');
+    return;
+  }
+  try{
+    const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }catch(e){
+    showMessage(ICON_WARN, 'Could not connect', 'Please check your internet connection and reload this page.');
+    return;
+  }
+  await loadItem();
+}
+
+async function loadItem(){
+  const { data, error } = await supabase.rpc('judge_link_get_item', { p_token: TOKEN });
+  if(error){
+    if(error.message && error.message.indexOf('LOCKED') !== -1){
+      showMessage(ICON_LOCK, 'Marking closed', 'The event admin has locked this link — marks have already been collected. If this seems wrong, contact your admin.');
+    }else if(error.message && error.message.indexOf('DECLARED') !== -1){
+      showMessage(ICON_LOCK, 'Results declared', 'The event admin has already declared the results for this item, so marks can no longer be changed. Contact your admin if this seems wrong.');
+    }else{
+      showMessage(ICON_WARN, 'Link not valid', 'This marking link doesn\u2019t work anymore. Ask your event admin for a fresh link.');
+    }
+    return;
+  }
+  ITEM_DATA = data;
+  render();
+}
+
+function render(){
+  document.getElementById('hdrItem').textContent = ITEM_DATA.itemName || 'Marking';
+  var judgeLabel = ITEM_DATA.label || ('Judge ' + ITEM_DATA.judgeIndex);
+  var subParts = [judgeLabel, 'Max ' + (ITEM_DATA.maxMarks || 100) + ' marks each'];
+  if(ITEM_DATA.sectionName) subParts.unshift(ITEM_DATA.sectionName);
+  document.getElementById('hdrSub').textContent = subParts.join(' \u00b7 ');
+
+  var participants = ITEM_DATA.participants || [];
+  if(!participants.length){
+    showMessage(ICON_WARN, 'No participants yet', 'No one has been assigned to this item yet. Check back once the admin has finalized entries.');
+    return;
+  }
+
+  var submittedBanner = ITEM_DATA.submittedAt
+    ? '<div class="badge" style="background:rgba(0,200,150,.15);color:var(--green);border-color:rgba(0,200,150,.35);margin-bottom:10px">Submitted \u2713 \u2014 you can still change scores and submit again until the admin locks this link</div>'
+    : '';
+
+  var html = submittedBanner + '<div class="card"><span class="badge">' + participants.length + ' Participant' + (participants.length===1?'':'s') + '</span>'
+    + '<div style="margin-top:12px">';
+  participants.forEach(function(p){
+    html += '<div class="row">'
+      + '<div class="code-letter">' + esc(p.codeLetter || '?') + '</div>'
+      + '<div style="flex:1;display:flex;align-items:center;justify-content:flex-end;gap:10px">'
+      + '<span class="save-status" id="status-' + p.participantId + '"></span>'
+      + '<input class="score-input" type="number" inputmode="decimal" min="0" max="' + (ITEM_DATA.maxMarks||100) + '" step="0.5"'
+      + ' id="score-' + p.participantId + '" data-pid="' + p.participantId + '" value="' + (p.existingScore != null ? p.existingScore : '') + '"'
+      + ' oninput="_validateScoreField(\'' + p.participantId + '\')" placeholder="\u2014">'
+      + '</div></div>';
+  });
+  html += '</div></div>'
+    + '<button class="btn-submit" id="submitAllBtn" onclick="submitAll()">Submit All Marks</button>'
+    + '<p style="text-align:center;font-size:.72rem;color:var(--text3);padding:12px 20px 0">Fill in every score, then tap Submit. You can come back and submit again any time before the admin locks this link.</p>';
+
+  document.getElementById('content').innerHTML = html;
+}
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+function _validateScoreField(participantId){
+  var input = document.getElementById('score-' + participantId);
+  var statusEl = document.getElementById('status-' + participantId);
+  var max = ITEM_DATA.maxMarks || 100;
+  var val = input.value.trim();
+  if(val === ''){ statusEl.textContent=''; statusEl.className='save-status'; input.classList.remove('saved'); return; }
+  var num = parseFloat(val);
+  if(isNaN(num) || num < 0 || num > max){
+    statusEl.textContent = '0-' + max + ' only';
+    statusEl.className = 'save-status err';
+    input.classList.remove('saved');
+  }else{
+    statusEl.textContent = '';
+    statusEl.className = 'save-status';
+    input.classList.remove('saved');
+  }
+}
+
+async function submitAll(){
+  var participants = ITEM_DATA.participants || [];
+  var max = ITEM_DATA.maxMarks || 100;
+  var scores = [];
+  var hasError = false;
+  var hasEmpty = false;
+
+  participants.forEach(function(p){
+    var input = document.getElementById('score-' + p.participantId);
+    var statusEl = document.getElementById('status-' + p.participantId);
+    var val = input.value.trim();
+    if(val === ''){ hasEmpty = true; statusEl.textContent='Missing'; statusEl.className='save-status err'; return; }
+    var num = parseFloat(val);
+    if(isNaN(num) || num < 0 || num > max){
+      hasError = true; statusEl.textContent = '0-' + max + ' only'; statusEl.className = 'save-status err'; return;
+    }
+    scores.push({ participantId: p.participantId, score: num });
+  });
+
+  if(hasError){ toast('Fix the scores marked in red \u2014 each must be 0-' + max); return; }
+  if(hasEmpty){ toast('Enter a score for every participant before submitting'); return; }
+
+  var btn = document.getElementById('submitAllBtn');
+  btn.disabled = true; btn.textContent = 'Submitting\u2026';
+
+  const { data, error } = await supabase.rpc('judge_submit_all', { p_token: TOKEN, p_scores: scores });
+
+  btn.disabled = false; btn.textContent = 'Submit All Marks';
+
+  if(error){
+    if(error.message && error.message.indexOf('LOCKED') !== -1){
+      showMessage(ICON_LOCK, 'Marking closed', 'The event admin has locked this link. Contact them if you need to make a change.');
+      return;
+    }
+    if(error.message && error.message.indexOf('DECLARED') !== -1){
+      showMessage(ICON_LOCK, 'Results declared', 'The event admin has already declared the results for this item, so this submission couldn\u2019t be saved. Contact your admin if this seems wrong.');
+      return;
+    }
+    if(error.message && error.message.indexOf('OUT_OF_RANGE') !== -1){
+      toast('A score was out of the allowed range (0-' + max + ')'); return;
+    }
+    toast('Could not submit. Check your connection and try again.');
+    return;
+  }
+
+  participants.forEach(function(p){
+    var input = document.getElementById('score-' + p.participantId);
+    var statusEl = document.getElementById('status-' + p.participantId);
+    input.classList.add('saved');
+    statusEl.textContent = 'Saved \u2713';
+    statusEl.className = 'save-status ok';
+  });
+  ITEM_DATA.submittedAt = data && data.submittedAt;
+  toast('All marks submitted!');
+  var existing = document.querySelector('.badge[style*="rgba(0,200,150"]');
+  if(!existing){
+    var content = document.getElementById('content');
+    var banner = document.createElement('div');
+    banner.className = 'badge';
+    banner.style.cssText = 'background:rgba(0,200,150,.15);color:var(--green);border-color:rgba(0,200,150,.35);margin-bottom:10px;display:block';
+    banner.textContent = 'Submitted \u2713 \u2014 you can still change scores and submit again until the admin locks this link';
+    content.insertBefore(banner, content.firstChild);
+  }
+}
+
+var _toastTimer=null;
+function toast(msg){
+  var existing=document.getElementById('wzToast');
+  if(existing) existing.remove();
+  var el=document.createElement('div');
+  el.id='wzToast';
+  el.textContent=msg;
+  el.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--card2);border:1px solid var(--border);color:var(--text);padding:12px 20px;border-radius:12px;font-size:.85rem;z-index:999;max-width:90vw;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.4)';
+  document.body.appendChild(el);
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(function(){ el.remove(); }, 3000);
+}
+
+init();
+</script>
+
+</body>
+</html>
