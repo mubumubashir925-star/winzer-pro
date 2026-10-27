@@ -1,16 +1,17 @@
 -- Backfill management metadata for institutions created before the new dashboard.
 -- Non-destructive: does not delete organizations, users, or competition data.
--- Review matched admin users after running; legacy accounts may not have an admin.
+-- Only migrate institutions with an existing admin profile; unmatched institutions are skipped.
+-- Do not create fake auth users or remove NOT NULL constraints.
 INSERT INTO public.institution_management
   (org_id, admin_user_id, admin_username, plan, participant_limit, suspended)
 SELECT o.id,
        u.id,
-       CASE WHEN u.id IS NULL THEN NULL ELSE 'legacy-admin' END,
+       'legacy-admin',
        'legacy',
        0,
        false
 FROM public.organizations o
-LEFT JOIN LATERAL (
+JOIN LATERAL (
   SELECT id FROM public.users
   WHERE org_id = o.id AND role = 'admin'
   ORDER BY id LIMIT 1
