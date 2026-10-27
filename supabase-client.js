@@ -755,16 +755,16 @@ async function pushMarks(marksArray) {
     if (p.chestNo != null && remoteId) chestToParticipantId[p.chestNo] = remoteId;
   });
 
-  for (const mark of marksArray) {
+  const saveOneMark = async (mark) => {
     const key = keyOf(mark);
     seen[key] = true;
     const participantId = chestToParticipantId[mark.chestNo];
     const itemId = _itemLocalToRemoteId[mark.itemId] || (_isUuid(mark.itemId) ? mark.itemId : null);
-    if (groupsByChest[String(mark.chestNo)]) continue; // saved to groups.result_marks above
+    if (groupsByChest[String(mark.chestNo)]) return; // saved to groups.result_marks above
     if (!participantId || !itemId) throw new Error('Mark dependency missing for chest '+mark.chestNo);
 
     const before = prevByKey[key];
-    if (before && JSON.stringify(before) === JSON.stringify(mark)) continue;
+    if (before && JSON.stringify(before) === JSON.stringify(mark)) return;
 
     const rawScores = [mark.mark1 || 0, mark.mark2 || 0, mark.mark3 || 0];
     const payload = {
@@ -794,6 +794,12 @@ async function pushMarks(marksArray) {
           {onConflict:'participant_id,item_id'});
       if (codeErr) throw codeErr;
     }
+  };
+  // Limit concurrency to avoid hundreds of sequential network round trips,
+  // while keeping each participant/item pair single-writer within a batch.
+  const uniqueMarks = [...new Map(marksArray.map(m => [keyOf(m),m])).values()];
+  for(let i=0;i<uniqueMarks.length;i+=8){
+    await Promise.all(uniqueMarks.slice(i,i+8).map(saveOneMark));
   }
   for (const mark of prev) {
     if (!seen[keyOf(mark)]) {
