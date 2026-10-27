@@ -567,6 +567,15 @@ async function doAdminLogin(){
   if(submitBtn){ submitBtn.disabled=true; submitBtn.textContent='Signing in\u2026'; }
   try{
     var result = await window.WinzeraSync.adminLogin(email, p);
+    var route=location.pathname.split('/').filter(Boolean);
+    if(route[0]==='super-admin' && result.role!=='super_admin'){
+      await window.WinzeraSync.adminSignOut();
+      throw new Error('Only a Super Admin can access this page.');
+    }
+    if(route.length>1 && route[1]==='admin' && result.role!=='super_admin' && result.orgCode!==route[0]){
+      await window.WinzeraSync.adminSignOut();
+      throw new Error('This account does not belong to this institution.');
+    }
     setSession({role:'admin', userId:result.userId, orgId:result.orgId, orgName:result.orgName, orgCode:result.orgCode, since:Date.now()});
     if(result.orgId) await _wzBootstrapAdminSync(result.orgId);
     _enterApp();
@@ -13197,6 +13206,9 @@ async function checkAuthAndNavigate(){
       try{
         if(session.role==='admin'){
           var adminInfo = await window.WinzeraSync.adminRestoreSession();
+          var route=location.pathname.split('/').filter(Boolean);
+          if(adminInfo && ((route[0]==='super-admin' && adminInfo.role!=='super_admin') ||
+             (route.length>1 && route[1]==='admin' && adminInfo.role!=='super_admin' && adminInfo.orgCode!==route[0]))) adminInfo=null;
           if(!adminInfo){ isLoggedIn=false; clearSession(); }
           else{
             session.orgCode = adminInfo.orgCode; setSession(session);
@@ -13290,6 +13302,20 @@ async function _launchApp(){
   // A broadcast link (?view=broadcast&token=...) skips the entire
   // app/login flow — no splash, no auth, straight to the live viewer.
   var _urlParams=new URLSearchParams(location.search);
+  // Root is intentionally not an institute. Only the super admin provisions institutes.
+  if(location.pathname==='/' || location.pathname==='/index.html'){
+    if(!_urlParams.has('view')){
+      var splashRoot=document.getElementById('splash');
+      if(splashRoot) splashRoot.style.display='none';
+      document.body.classList.remove('wz14-lock');
+      var root=document.createElement('main');
+      root.setAttribute('role','main');
+      root.style.cssText='position:fixed;inset:0;display:grid;place-items:center;background:#0d0618;color:#f3edff;font:500 17px system-ui,sans-serif;text-align:center;padding:24px;z-index:2147483645';
+      root.innerHTML='<div><h1 style="font-size:26px;margin:0 0 12px">Winzera Pro</h1><p style="opacity:.8;margin:0">Use Winzera Pro with an institution.</p></div>';
+      document.body.appendChild(root);
+      return;
+    }
+  }
   // Institute-first deep links. Keep legacy ?view=broadcast&org= links working.
   var _routeParts=location.pathname.split('/').filter(Boolean);
   var _routeReserved=['super-admin','index.html','judge.html','broadcast.html','admin'];
