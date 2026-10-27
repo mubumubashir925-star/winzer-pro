@@ -13306,7 +13306,7 @@ async function initAppDataAndServices(){
 }
 
 async function _launchApp(){
-  if(location.pathname.replace(/\\/$/,'')==='/super-admin'){
+  if(location.pathname==='/super-admin' || location.pathname==='/super-admin/'){
     location.replace('/super-admin.html');
     return;
   }
