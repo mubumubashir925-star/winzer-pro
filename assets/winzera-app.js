@@ -560,6 +560,13 @@ function _loginShakeAndWarn(customMsg){
 }
 async function doAdminLogin(){
   var email=v('li-admin-email').trim().toLowerCase(), p=v('li-admin-pass');
+  var _parts=location.pathname.split('/').filter(Boolean);
+  // Institution usernames authenticate through Supabase Auth using a server-provisioned
+  // internal email. The password itself remains exclusively in Supabase Auth.
+  if(_parts.length>1 && _parts[1]==='admin' && email.indexOf('@')<0){
+    if(!/^[a-z0-9][a-z0-9_.-]{2,31}$/.test(email)){_loginErr('Invalid admin username');return;}
+    email=_parts[0]+'--'+email+'@accounts.winzera.invalid';
+  }
   if(!email || !p){ _loginErr('Please enter both email and password'); return; }
   if(!window.WinzeraSync){ _loginErr('Login service failed to load. Check your connection and reload the page.'); return; }
   var btn=document.getElementById('li-admin-email'); // just to scope; real disabling below
