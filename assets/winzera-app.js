@@ -5188,7 +5188,7 @@ function _pvRequestRefresh(btn){
       else if(res.status==='ended'||res.status==='not_found'){ _pvSetState('ended'); }
     }).catch(function(e){ toast('Could not refresh: '+(e.message||'check your connection'),'error'); });
   }else{
-    toast('Not connected — reopen the broadcast link to refresh','error'); return;
+    toast('Not connected — reopen the institution link to refresh','error'); return;
   }
   if(btn){
     btn.style.transform='rotate(360deg)';
@@ -5336,8 +5336,8 @@ function _pvRender(){
   if(!data||state==='ended'){
     _pvClearDashTimers();
     root.innerHTML = state==='ended'
-      ? '<div class="pv-status">Broadcast ended.</div>'
-      : '<div class="pv-status pv-pulse">Waiting for broadcast\u2026</div>';
+      ? '<div class="pv-status">Results are not available yet.</div>'
+      : '<div class="pv-status pv-pulse">Waiting for results\u2026</div>';
     return;
   }
   var festEl=document.getElementById('pubViewFest'); if(festEl) festEl.textContent=(data.fest&&data.fest.festName)||'Live Results';
