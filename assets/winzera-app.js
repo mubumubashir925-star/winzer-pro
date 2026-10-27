@@ -13290,7 +13290,31 @@ async function _launchApp(){
   // A broadcast link (?view=broadcast&token=...) skips the entire
   // app/login flow — no splash, no auth, straight to the live viewer.
   var _urlParams=new URLSearchParams(location.search);
+  // Institute-first deep links. Keep legacy ?view=broadcast&org= links working.
+  var _routeParts=location.pathname.split('/').filter(Boolean);
+  var _routeReserved=['super-admin','index.html','judge.html','broadcast.html','admin'];
+  var _instituteSlug=(_routeParts.length && _routeReserved.indexOf(_routeParts[0].toLowerCase())<0)
+    ? decodeURIComponent(_routeParts[0]) : '';
+  var _isInstituteAdminRoute=!!(_instituteSlug && _routeParts[1]==='admin');
+  if(_instituteSlug && !_isInstituteAdminRoute && !_urlParams.has('view')){
+    _urlParams.set('view','broadcast');
+    _urlParams.set('org',_instituteSlug);
+  }
   if(_urlParams.get('view')==='broadcast' && _urlParams.get('org')){
+    // Discreet administration access; real authorization remains Supabase RLS/Auth.
+    if(_instituteSlug){
+      var _publicHeader=document.querySelector('#publicViewScreen > div');
+      if(_publicHeader && !document.getElementById('wzInstituteAdminEntry')){
+        var _entry=document.createElement('a');
+        _entry.id='wzInstituteAdminEntry';
+        _entry.href='/'+encodeURIComponent(_instituteSlug)+'/admin';
+        _entry.textContent='⚙';
+        _entry.title='Institute administration';
+        _entry.setAttribute('aria-label','Institute administration');
+        _entry.style.cssText='position:absolute;right:14px;bottom:12px;z-index:15;color:#a094c9;opacity:.55;text-decoration:none;font-size:17px;padding:8px';
+        document.getElementById('publicViewScreen').appendChild(_entry);
+      }
+    }
     document.getElementById('splash').style.display='none';
     document.body.classList.remove('wz14-lock');
     applyAccentColor(getAccentColor()); // cosmetic only — skips initTheme(), which expects login-screen elements this boot path never renders
