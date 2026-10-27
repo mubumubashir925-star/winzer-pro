@@ -201,7 +201,7 @@ box-shadow:0 8px 30px rgba(0,0,0,.4);
   </div>
 </div>
 
-<!-- ===== PUBLIC VIEWER (Live Broadcast) — offline projector display ===== -->
+<!-- Institution public results dashboard -->
 <div id="publicViewScreen" style="display:none;position:fixed;inset:0;z-index:4500;background:#05030d;color:#f0eaff;flex-direction:column;overflow:hidden">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 22px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;background:linear-gradient(180deg,rgba(255,255,255,.035),transparent)">
     <div style="display:flex;align-items:center;gap:12px;min-width:0">
@@ -216,13 +216,30 @@ box-shadow:0 8px 30px rgba(0,0,0,.4);
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-      <button class="btn btn-secondary btn-sm" id="pvRefreshBtn" onclick="_pvRequestRefresh(this)" title="Force an instant resync with the broadcaster" style="width:auto;padding:6px 10px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
-      <button class="btn btn-secondary btn-sm" id="pvExitBtn" onclick="_exitPublicView()" style="width:auto;padding:6px 14px">Exit</button>
+      <button class="btn btn-secondary btn-sm" id="pvRefreshBtn" onclick="_pvRequestRefresh(this)" title="Refresh results" style="width:auto;padding:6px 10px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
+      <button class="btn btn-secondary btn-sm" id="pvExitBtn" onclick="_exitPublicView()" style="width:auto;padding:6px 14px">Close</button>
     </div>
   </div>
   <div id="pubViewBody" style="flex:1;overflow:hidden;display:flex;flex-direction:column;padding:20px;gap:18px"></div>
 </div>
 
+<style id="wz-public-modern">
+#publicViewScreen{background:linear-gradient(155deg,#0c1528,#12102b 60%,#101e2b)!important;color:#f8fafc!important;font-family:Inter,system-ui,-apple-system,sans-serif!important}
+#publicViewScreen>div:first-child{background:rgba(18,28,51,.92)!important;border-bottom:1px solid #ffffff1a!important;box-shadow:0 5px 24px #0002}
+#publicViewScreen #pubViewBody{overflow-y:auto!important;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#475569 transparent}
+#publicViewScreen #pubViewFest{font-size:clamp(1rem,2.5vw,1.35rem)!important;letter-spacing:-.025em!important}
+#publicViewScreen #pvExitBtn{display:none!important}
+#publicViewScreen .pv2-card{border-radius:18px!important;box-shadow:0 12px 35px #0002!important}
+#publicViewScreen .pv2-card-title{letter-spacing:-.02em}
+@media(max-width:720px){
+#publicViewScreen>div:first-child{padding:12px 15px!important}
+#publicViewScreen #pubViewBody{padding:12px!important;gap:12px!important}
+#publicViewScreen .pv2-grid,#publicViewScreen .pv2-dashboard,#publicViewScreen .pv2-cards{grid-template-columns:minmax(0,1fr)!important}
+#publicViewScreen .pv2-card{min-width:0!important;max-width:100%!important}
+#publicViewScreen .pv2-card-body{max-height:none!important}
+#publicViewScreen #pubViewLogo{width:36px!important;height:36px!important}
+}
+</style>
 <script id="wz-vendor-libs" src="/assets/winzera-vendor.js"></script>
 <script id="wz-source-protection">
 // ---- Source protection (deterrent only, not real security) ----
